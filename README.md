@@ -1,2 +1,2 @@
 # Tic-Tac-Toe
-Tic-Tac-Toe implementation in go.
+Bitboard implementation of Tic-Tac-Toe, in Go.
