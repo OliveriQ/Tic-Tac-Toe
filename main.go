@@ -6,36 +6,28 @@ import (
 )
 
 const x, o int = 0, 1
-
-var turn int = 0
+const infinity = 99999
 
 var win_masks = [8]uint16{
-	0b000000111,
-	0b000111000,
-	0b111000000,
-
-	0b100100100,
-	0b010010010,
-	0b001001001,
-
-	0b100010001,
-	0b001010100,
+	0b000000111, 0b000111000, 0b111000000,
+	0b100100100, 0b010010010, 0b001001001,
+	0b100010001, 0b001010100,
 }
-
-// implement make_move function
 
 func main() {
 	var bb [2]uint16
+	var turn int = 0
 	for is_game_over(bb) == 2 {
 		if turn == x {
 			fmt.Println("\nYour turn")
 			bb = get_player_move(bb)
 		} else {
 			fmt.Println("\nAI's turn")
-			bb = get_computer_move(bb)
+			//bb = pick_random_move(bb)
+			bb = search_best_move(bb)
 		}
 		print_board(bb)
-		next_turn()
+		turn = next_turn(turn)
 	}
 
 	var result int = is_game_over(bb)
@@ -49,7 +41,57 @@ func main() {
 	}
 }
 
-func get_computer_move(bb [2]uint16) [2]uint16 {
+func negamax(bb [2]uint16, turn int) int {
+	turn = next_turn(turn)
+	result := is_game_over(bb)
+	if result == 0 {
+		return 0
+	} else if result == 1 {
+		return -1
+	} else if result == -1 {
+		return -1
+	}
+
+	max := -infinity
+	move_list := get_empty_cells(bb)
+	for i := 0; i < len(move_list); i++ {
+		move := move_list[i]
+		bb[turn] = make_move(bb[turn], move)
+		score := -negamax(bb, turn)
+		bb[turn] = unmake_move(bb[turn], move)
+
+		if score > max {
+			max = score
+		}
+	}
+
+	return max
+}
+
+func search_best_move(bb [2]uint16) [2]uint16 {
+	var best_move int
+	max := -infinity
+	turn := o
+	move_list := get_empty_cells(bb)
+	for i := 0; i < len(move_list); i++ {
+		move := move_list[i]
+		bb[turn] = make_move(bb[turn], move)
+		score := -negamax(bb, turn)
+		bb[turn] = unmake_move(bb[turn], move)
+
+		if score > max {
+			max = score
+			best_move = move
+		}
+	}
+
+	fmt.Println("best move: ", best_move)
+	turn = o
+	bb[o] = make_move(bb[o], best_move)
+	return bb
+}
+
+func pick_random_move(bb [2]uint16) [2]uint16 {
 	var move int
 	for {
 		move = rand.Intn(9)
@@ -72,8 +114,20 @@ func get_player_move(bb [2]uint16) [2]uint16 {
 		}
 	}
 
-	bb[x] = set_bit(bb[x], move-1)
+	bb[x] = make_move(bb[x], move-1)
 	return bb
+}
+
+func get_empty_cells(bb [2]uint16) []int {
+	var empty_cells []int
+
+	for i := 0; i < 9; i++ {
+		if (get_bit(bb[x], i) == 0) && (get_bit(bb[o], i) == 0) {
+			empty_cells = append(empty_cells, i)
+		}
+	}
+
+	return empty_cells
 }
 
 func is_game_over(bb [2]uint16) int {
@@ -94,7 +148,7 @@ func is_game_over(bb [2]uint16) int {
 
 func is_board_full(bb [2]uint16) bool {
 	for i := 0; i < 9; i++ {
-		if get_bit(bb[x], i) == 0 || get_bit(bb[o], i) == 0 {
+		if (get_bit(bb[x], i) == 0) && (get_bit(bb[o], i) == 0) {
 			return false
 		}
 	}
@@ -110,8 +164,22 @@ func is_valid_move(bb [2]uint16, move int) bool {
 	return false
 }
 
+func make_move(bb uint16, move int) uint16 {
+	bb = set_bit(bb, move)
+	return bb
+}
+
+func unmake_move(bb uint16, move int) uint16 {
+	bb = flip_bit(bb, move)
+	return bb
+}
+
 func set_bit(bb uint16, index int) uint16 {
-	return bb | (1 << (8 - index))
+	return bb | (1 << index)
+}
+
+func flip_bit(bb uint16, index int) uint16 {
+	return bb ^ (1 << index)
 }
 
 func get_bit(bb uint16, index int) int {
@@ -127,14 +195,14 @@ func get_occupied(bb [2]uint16) uint16 {
 
 func is_occupied(bb [2]uint16, index int) bool {
 	occ := get_occupied(bb)
-	if (occ & (1 << (8 - index))) > 0 {
+	if (occ & (1 << index)) > 0 {
 		return true
 	}
 	return false
 }
 
 func print_board(bb [2]uint16) {
-	for i := 8; i >= 0; i-- {
+	for i := 0; i < 9; i++ {
 		bit_x := get_bit(bb[x], i)
 		bit_o := get_bit(bb[o], i)
 		if bit_x == 1 {
@@ -144,24 +212,16 @@ func print_board(bb [2]uint16) {
 		} else {
 			fmt.Print("- ")
 		}
-		if i%3 == 0 {
+		if i%3 == 2 {
 			fmt.Print("\n")
 		}
 	}
 }
 
-func next_turn() {
+func next_turn(turn int) int {
 	if turn == x {
-		turn = o
+		return o
 	} else {
-		turn = x
+		return x
 	}
 }
-
-/*
-board representation:
-=> 1 bitboard for naughts and 1 for crosses
-=> compute occupied cells by ANDing naughs and crosses bitboards
-=> compute empty cells by using occupied cells
-
-*/
