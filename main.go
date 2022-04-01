@@ -5,14 +5,16 @@ import (
 	"math/rand"
 )
 
-const x, o int = 0, 1
-const infinity = 99999
-
 var win_masks = [8]uint16{
 	0b000000111, 0b000111000, 0b111000000,
 	0b100100100, 0b010010010, 0b001001001,
 	0b100010001, 0b001010100,
 }
+
+const (
+	infinity int = 99999
+	x, o     int = 0, 1
+)
 
 func main() {
 	var bb [2]uint16
